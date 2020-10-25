@@ -1,0 +1,25 @@
+{
+  "ecmaVersion": 8,
+  "libs": [
+    "jquery",
+    "browser",
+    "underscore",
+    "react",
+    "chai"
+  ],
+  "loadEagerly": [],
+  "dontLoad": [
+    "node_modules/**"
+  ],
+  "plugins": {
+    "doc_comment": true,
+    "node": {
+      "dontLoad": "",
+      "load": "",
+      "modules": ""
+    },
+    "complete_strings": {
+      "maxLength": 15
+    }
+  }
+}
