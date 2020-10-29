@@ -13,7 +13,8 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-mongoose.connect("mongodb://localhost:27017/todolistDB", { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false });
+// mongoose.connect("mongodb://localhost:27017/todolistDB", { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false });
+mongoose.connect("mongodb+srv://Varun:test123@cluster0.pokin.mongodb.net/todolistDB?retryWrites=true&w=majority", { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false });
 
 const itemSchema = mongoose.Schema({
   name: {
@@ -81,6 +82,7 @@ app.post("/", function (req, res) {
   const itemName = req.body.newItem;
   // console.log('Item is ' + itemName);
   var listName = req.body.list;
+  listName = listName.trim();
   console.log('listName is ' + listName);
 
   const newitem = new Item({
@@ -88,6 +90,7 @@ app.post("/", function (req, res) {
 
   });
   if (listName === "Today") {
+    console.log('Hello');
     newitem.save();
 
     res.redirect("/");

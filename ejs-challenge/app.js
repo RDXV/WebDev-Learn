@@ -1,8 +1,10 @@
+/* eslint-disable no-unused-vars */
 //jshint esversion:6
 
 const express = require("express");
 const bodyParser = require("body-parser");
-const ejs = require("ejs");
+var _ = require('lodash');
+// const ejs = require("ejs");
 
 const homeStartingContent = "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
 const aboutContent = "Hac habitasse platea dictumst vestibulum rhoncus est pellentesque. Dictumst vestibulum rhoncus est pellentesque elit ullamcorper. Non diam phasellus vestibulum lorem sed. Platea dictumst quisque sagittis purus sit. Egestas sed sed risus pretium quam vulputate dignissim suspendisse. Mauris in aliquam sem fringilla. Semper risus in hendrerit gravida rutrum quisque non tellus orci. Amet massa vitae tortor condimentum lacinia quis vel eros. Enim ut tellus elementum sagittis vitae. Mauris ultrices eros in cursus turpis massa tincidunt dui.";
@@ -12,22 +14,65 @@ const app = express();
 
 app.set('view engine', 'ejs');
 
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 
+const Posts = [];
 
+app.get("/", function (req, res) {
+  res.render("home", { homeData: homeStartingContent, posts: Posts });
+  // console.log(Posts);
+});
 
+app.get("/contact", function (req, res) {
+  res.render("contact", { contactData: contactContent });
+});
 
+app.get("/about", function (req, res) {
+  res.render("about", { aboutData: aboutContent });
+});
 
+app.get("/compose", function (req, res) {
+  res.render("compose");
+});
 
+// routing in express
+app.get("/posts/:name", function (req, res) {
 
+  const postname = _.lowerCase(req.params.name);
+  var flag = 0;
 
+  Posts.forEach(element => {
+    var elementTitle = _.lowerCase(element.title);
+    var message = element.content;
+    if (elementTitle == postname) {
+      console.log('Match Found!');
+      res.render("post", {
+        title: element.title,
+        body: message
+      });
+      flag = 1;
+    }
+  });
+  if (flag == 0) {
+    console.log('Match not found');
+    res.send("Page not found");
+  }
 
+});
 
+app.post("/compose", function (req, res) {
 
+  const post = {
 
+    title: req.body.postTitle,
+    content: req.body.postData
+  };
+  Posts.push(post);
+  res.redirect("/");
+});
 
-app.listen(3000, function() {
+app.listen(3000, function () {
   console.log("Server started on port 3000");
 });
