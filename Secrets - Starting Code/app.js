@@ -9,11 +9,12 @@ const express = require("express");
 const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+const md5 = require("md5");
+// const encrypt = require("mongoose-encryption");
 const app = express();
 
 // We can access the env variables anywhere by 'process.env.VARIABLE_NAME'
-console.log(process.env.API_KEY);
+// console.log(process.env.API_KEY);
 
 app.use(express.static("public"));
 app.set("view engine", "ejs");
@@ -39,10 +40,10 @@ const userSchema = new mongoose.Schema({
 // Place the above in .env file as SECRET_CODE or SECRET="Thisisoursecret" without spacingas per in dotenv mongoose webpage mentioned
 // fullstop(.) part of key in env file
 // Then replace the secret:secret with secret:process.env.SECRET
-userSchema.plugin(encrypt, {
-  secret: process.env.SECRET,
-  encryptedFields: ["password"],
-});
+// userSchema.plugin(encrypt, {
+//   secret: process.env.SECRET,
+//   encryptedFields: ["password"],
+// });
 // Pass the encrypt plugin before creating the mongoose model because we are passing the userSchema as parameter to mongoose model User
 
 const User = mongoose.model("User", userSchema);
@@ -62,7 +63,7 @@ app.get("/login", function (req, res) {
 app.post("/register", function (req, res) {
   const newUser = new User({
     email: req.body.username,
-    password: req.body.password,
+    password: md5(req.body.password),
   });
   newUser.save(function (err) {
     if (err) {
@@ -76,7 +77,8 @@ app.post("/register", function (req, res) {
 
 app.post("/login", function (req, res) {
   const username = req.body.username;
-  const password = req.body.password;
+  const password = md5(req.body.password);
+  // Remember that the hash created from Same string is always going to be the same
 
   User.findOne({ email: username }, function (err, foundData) {
     if (err) {
