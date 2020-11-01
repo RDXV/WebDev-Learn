@@ -9,7 +9,9 @@ const express = require("express");
 const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+// const md5 = require("md5");
 // const encrypt = require("mongoose-encryption");
 const app = express();
 
@@ -61,23 +63,31 @@ app.get("/login", function (req, res) {
 });
 
 app.post("/register", function (req, res) {
-  const newUser = new User({
-    email: req.body.username,
-    password: md5(req.body.password),
-  });
-  newUser.save(function (err) {
+  bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+    // Store hash in your password DB.
     if (err) {
-      console.log(err);
+      res.send("Error faced while hashing passwords");
     } else {
-      console.log("New User registered successfully");
-      res.render("secrets");
+      const newUser = new User({
+        email: req.body.username,
+        password: hash,
+        // password: md5(req.body.password),
+      });
+      newUser.save(function (err) {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log("New User registered successfully");
+          res.render("secrets");
+        }
+      });
     }
   });
 });
 
 app.post("/login", function (req, res) {
   const username = req.body.username;
-  const password = md5(req.body.password);
+  const password = req.body.password;
   // Remember that the hash created from Same string is always going to be the same
 
   User.findOne({ email: username }, function (err, foundData) {
@@ -86,14 +96,14 @@ app.post("/login", function (req, res) {
     } else {
       // Note that if email changed to name then also it shows the secrets so check if foundData is null or not
       if (foundData) {
-        if (foundData.password == password) {
-          // console.log(foundData);
-          res.render("secrets");
-        } else {
-          res.send(
-            "The password does not match with the email id. Kindly try again."
-          );
-        }
+        bcrypt.compare(password, foundData.password, function (err, result) {
+          // result == true
+          if (result === true) {
+            res.render("secrets");
+          } else {
+            res.send("The password you entered is incorrect");
+          }
+        });
       } else {
         res.send("Data not found. plsease try again");
       }
