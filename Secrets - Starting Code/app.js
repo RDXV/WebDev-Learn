@@ -13,6 +13,8 @@ const mongoose = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
+var GoogleStrategy = require("passport-google-oauth20").Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 // No need to explicitly require passport-local as it will be used automatically by passport-local-mongoose
 const app = express();
 
@@ -64,10 +66,16 @@ const userSchema = new mongoose.Schema({
   // },
   email: String,
   password: String,
+  // For google authentication we need to add gogle id
+  googleId: String,
+  // Amend schema by adding secret array for storing the user's secrets
+  secret: String,
+  // Later try for array of secrets
 });
 
 userSchema.plugin(passportLocalMongoose);
 // We are going to use the above plugin for hashing and salting our passwords and to save our users in mongoDB database
+userSchema.plugin(findOrCreate);
 
 var User = mongoose.model("User", userSchema);
 // Now implement passport-local configurations
@@ -84,6 +92,25 @@ passport.deserializeUser(function (id, done) {
   });
 });
 
+// You cant put the below above session as first the cookie session must start
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/google/secrets",
+      // userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    function (accessToken, refreshToken, profile, cb) {
+      // This function contains what we get back from google
+      // console.log(profile._json);
+      // We need to save profile.id to login user as mongoDB contains automatically generated id and not the real id
+      User.findOrCreate({ googleId: profile.id }, function (err, user) {
+        return cb(err, user);
+      });
+    }
+  )
+);
 // Serialize and de-serialize are used during sesisons where serialize is used to create a cookie carrying session info and de-serialize is used to
 // get crumble the cookie and get the message using passport
 // We have to write more code using passport and passport-local but as we are using passport-local-mongoose we have to write the passport.use,
@@ -103,17 +130,66 @@ app.get("/login", function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
-  if (req.isAuthenticated()) {
-    res.render("secrets");
-  } else {
-    res.redirect("/login");
-    console.log("You must be logged in to go to secrets page");
-  }
+  // if (req.isAuthenticated()) {
+  //   res.render("secrets");
+  // } else {
+  //   res.redirect("/login");
+  //   console.log("You must be logged in to go to secrets page");
+  // }
+  // Not just show secrets page but show all anonymous secrets
+  User.find({ "secret": { $ne: null } }, function (err, foundUsers) {
+    // Dont forget double quots for secret
+    if (err) {
+      console.log(err);
+    } else {
+      if (foundUsers) {
+        res.render("secrets", { usersWithSecrets: foundUsers });
+      }
+    }
+  });
 });
 
 app.get("/logout", function (req, res) {
   req.logOut();
   res.redirect("/");
+});
+
+// app.get("/auth/google", function (req, res) {
+//   console.log("auth invoked google");
+//   passport.authenticate("google", {
+//     scope: ["profile"],
+//     successRedirect: "/profile",
+//     failureRedirect: "/",
+//   });
+//   // Should be enough to bring pop-up asking user to sign up
+// });
+
+// Above is WRONG code
+app.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile"], failureRedirect: "/" })
+);
+
+// Once the user gets signed in from google then get request to auth/google/callback (secrets in this case)
+app.get(
+  "/auth/google/secrets",
+  passport.authenticate("google", {
+    failureRedirect: "/login",
+    failureMessage: "Authentication by google failed. Please try again",
+  }),
+  function (req, res) {
+    // Successful authentication
+    res.redirect("/secrets");
+  }
+);
+
+app.get("/submit", function (req, res) {
+  if (req.isAuthenticated()) {
+    res.render("submit");
+  } else {
+    res.redirect("/login");
+    console.log("You must be logged in to go to secrets page");
+  }
 });
 
 app.post("/register", function (req, res) {
@@ -151,6 +227,25 @@ app.post("/login", function (req, res) {
       passport.authenticate("local")(req, res, function () {
         res.redirect("/secrets");
       });
+    }
+  });
+});
+
+app.post("/submit", function (req, res) {
+  const newSecret = req.body.secret;
+  // Take the secret and save it isndie the user's secrets
+  // passport handles the authenctication through req.user
+  // console.log(req.user);
+  User.findById(req.user.id, function (err, foundUser) {
+    if (err) {
+      console.log(err);
+    } else {
+      if (foundUser) {
+        foundUser.secret = newSecret;
+        foundUser.save(function () {
+          res.redirect("/secrets");
+        });
+      }
     }
   });
 });
